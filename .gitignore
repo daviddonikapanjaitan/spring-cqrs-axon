@@ -1,0 +1,8 @@
+./ApiGateway/target
+./ApiGateway/target/**
+./DiscoveryServer/target
+./DiscoveryServer/target/**
+./ProductService/target
+./ProductService/target/**
+.metadata
+.metadata/**
