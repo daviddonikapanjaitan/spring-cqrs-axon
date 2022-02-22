@@ -10,6 +10,10 @@ import org.axonframework.spring.stereotype.Aggregate;
 import org.springframework.beans.BeanUtils;
 
 import com.appsdeveloperblog.estore.ProductService.core.events.ProductCreatedEvent;
+import com.appsdeveloperblog.estore.core.commands.CancelProductReservationCommand;
+import com.appsdeveloperblog.estore.core.commands.ReserveProductCommand;
+import com.appsdeveloperblog.estore.core.events.ProductReservationCancelledEvent;
+import com.appsdeveloperblog.estore.core.events.ProductReserveEvent;
 
 @Aggregate
 public class ProductAggregate {
@@ -44,11 +48,53 @@ public class ProductAggregate {
 		AggregateLifecycle.apply(productCreatedEvent);
 	}
 	
+	@CommandHandler
+	public void handle(ReserveProductCommand reserverProductCommand) {
+		
+		if(quantity < reserverProductCommand.getQuantity()) {
+			throw new IllegalArgumentException("Insufficient number of items in stock");
+		}
+		
+		ProductReserveEvent productReserveEvent = ProductReserveEvent.builder()
+				.orderId(reserverProductCommand.getOrderId())
+				.productId(reserverProductCommand.getProductId())
+				.quantity(reserverProductCommand.getQuantity())
+				.userId(reserverProductCommand.getUserId())
+				.build();
+	
+		AggregateLifecycle.apply(productReserveEvent);
+	}
+	
+	@CommandHandler
+	public void handle(CancelProductReservationCommand cancelProductReservationCommand) {
+		
+		ProductReservationCancelledEvent productReservationCancelledEvent = 
+				ProductReservationCancelledEvent.builder()
+				.orderId(cancelProductReservationCommand.getOrderId())
+				.productId(cancelProductReservationCommand.getProductId())
+				.quantity(cancelProductReservationCommand.getQuantity())
+				.reason(cancelProductReservationCommand.getReason())
+				.userId(cancelProductReservationCommand.getUserId())
+				.build();
+		
+		AggregateLifecycle.apply(productReservationCancelledEvent);
+	}
+	
+	@EventSourcingHandler
+	public void on(ProductReservationCancelledEvent productReservationCancelledEvent) {
+		this.quantity += productReservationCancelledEvent.getQuantity();
+	}
+	
 	@EventSourcingHandler
 	public void on(ProductCreatedEvent productCreatedEvent) {
 		this.productId = productCreatedEvent.getProductId();
 		this.price = productCreatedEvent.getPrice();
 		this.title = productCreatedEvent.getTitle();
 		this.quantity = productCreatedEvent.getQuantity();
+	}
+	
+	@EventSourcingHandler
+	public void on(ProductReserveEvent productReserveEvent) {
+		this.quantity -= productReserveEvent.getQuantity();
 	}
 }
